@@ -114,6 +114,26 @@ fn render_grid(
     Ok(())
 }
 
+fn render_points(
+    ctx: &Context,
+    series: &[(f64, f64)],
+    bg: Color,
+    fg: Color,
+) -> Result<(), Box<dyn Error>> {
+    ctx.save()?;
+    ctx.set_line_width(1.0);
+    for (x, y) in series.iter() {
+        ctx.new_path();
+        ctx.arc(*x, *y, 3.0, 0.0, 2.0 * PI);
+        bg.set(ctx);
+        ctx.fill_preserve()?;
+        fg.set(ctx);
+        ctx.stroke()?;
+    }
+    ctx.restore()?;
+    Ok(())
+}
+
 pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>> {
     let size = opts.size();
     let width = size.width() as f64;
@@ -171,17 +191,10 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
     ctx.fill()?;
     ctx.restore()?;
 
-    ctx.save()?;
-    ctx.set_line_width(1.0);
-    for (x, y) in sa.iter() {
-        ctx.new_path();
-        ctx.arc(*x, *y, 3.0, 0.0, 2.0 * PI);
-        Color::from_u32(0xffffff).set(ctx);
-        ctx.fill_preserve()?;
-        Color::from_u32(0x000000).set(ctx);
-        ctx.stroke()?;
-    }
-    ctx.restore()?;
+    let fg = Color::from_u32(0x000000);
+    let bg = Color::from_u32(0xffffff);
+    render_points(ctx, &sa, bg, fg)?;
+    render_points(ctx, &sb, bg, fg)?;
 
     Ok(())
 }

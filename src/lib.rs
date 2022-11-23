@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
 use cairo::Context;
 use memmap::{Mmap, MmapOptions};
-use rand::{distributions::Uniform, prelude::Distribution, SeedableRng};
+use rand::{distributions::Uniform, prelude::Distribution};
 use rand_pcg::Pcg64;
 use std::{error::Error, fs, io, path::Path, str::FromStr};
 
