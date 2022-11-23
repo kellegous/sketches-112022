@@ -1,9 +1,8 @@
 use cairo::Context;
 use rand::{Rng, RngCore};
-use sketches::{Color, RenderOpts, Size};
+use sketches::{Color, RenderOpts};
+use std::error::Error;
 use std::f64::consts::PI;
-use std::sync::Arc;
-use std::{error::Error, ops::Range};
 
 fn select_colors(rng: &mut dyn RngCore, colors: &[Color]) -> (Color, Vec<Color>) {
     let iter = colors
@@ -183,25 +182,6 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
         ctx.stroke()?;
     }
     ctx.restore()?;
-
-    // {
-    //     let dw = width / nw as f64;
-    //     let dh = height / nh as f64;
-    //     ctx.save()?;
-    //     ctx.translate(dw / 2.0, dh / 2.0);
-    //     for i in 0..nw {
-    //         let x = dw * i as f64;
-    //         let y = dh * rng.gen_range(0..nh) as f64;
-    //         ctx.new_path();
-    //         ctx.arc(x, y, 5.0, 0.0, 2.0 * PI);
-    //         theme[0].set(ctx);
-    //         ctx.fill_preserve()?;
-    //         theme[2].set(ctx);
-    //         ctx.set_line_width(2.0);
-    //         ctx.stroke()?;
-    //     }
-    //     ctx.restore()?;
-    // }
 
     Ok(())
 }
