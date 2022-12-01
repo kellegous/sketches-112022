@@ -111,5 +111,6 @@ impl Format {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
+    println!("seed: {}", args.seed);
     args.format.render(&args)
 }

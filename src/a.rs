@@ -224,6 +224,12 @@ impl Grid {
     }
 }
 
+impl std::fmt::Display for Grid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}x{}", self.nw, self.nh)
+    }
+}
+
 pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), Box<dyn Error>> {
     let size = opts.size();
     let width = size.width() as f64;
@@ -240,7 +246,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.rectangle(0.0, 0.0, width, height);
     ctx.fill()?;
 
-    let tgrid = Grid::new(rng.gen_range(5..40), rng.gen_range(5..20));
+    let tgrid = Grid::new(rng.gen_range(5..20), rng.gen_range(5..10));
     let series = Series::gen_on_grid(&mut rng, &tgrid, width, height / 2.0);
     ctx.save()?;
     theme[0].set(ctx);
@@ -250,7 +256,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     series.stroke(ctx)?;
     ctx.restore()?;
 
-    let bgrid = Grid::new(tgrid.nw(), rng.gen_range(5..20));
+    let bgrid = Grid::new(tgrid.nw(), rng.gen_range(5..10));
     let series = Series::gen_on_grid(&mut rng, &bgrid, width, height / 2.0);
     ctx.save()?;
     ctx.translate(0.0, height / 2.0);
