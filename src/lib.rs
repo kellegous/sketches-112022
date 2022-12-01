@@ -60,32 +60,56 @@ impl FromStr for Size {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Color {
+    a: u8,
     r: u8,
     g: u8,
     b: u8,
 }
 
 impl Color {
-    pub fn from_u32(c: u32) -> Color {
-        Color {
-            r: ((c >> 16) & 0xff) as u8,
-            g: ((c >> 8) & 0xff) as u8,
-            b: (c & 0xff) as u8,
+    pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b, a: 0xff }
+    }
+
+    pub fn from_rgba(r: u8, g: u8, b: u8, a: f64) -> Self {
+        Self {
+            r,
+            g,
+            b,
+            a: (a * 255.0) as u8,
         }
     }
 
-    pub fn set_with_alpha(&self, ctx: &Context, a: f64) {
-        let r = self.r as f64 / 256.0;
-        let g = self.g as f64 / 256.0;
-        let b = self.b as f64 / 256.0;
-        ctx.set_source_rgba(r, g, b, a);
+    pub fn from_rgba_u32(c: u32) -> Self {
+        Self::from_rgba(
+            ((c >> 16) & 0xff) as u8,
+            ((c >> 8) & 0xff) as u8,
+            (c & 0xff) as u8,
+            ((c >> 24) & 0xff) as f64 / 255.0,
+        )
+    }
+
+    pub fn from_rgb_u32(c: u32) -> Self {
+        Self::from_rgb(
+            ((c >> 16) & 0xff) as u8,
+            ((c >> 8) & 0xff) as u8,
+            (c & 0xff) as u8,
+        )
+    }
+
+    pub fn with_alpha(&self, a: f64) -> Self {
+        Self::from_rgba(self.r, self.g, self.b, a)
     }
 
     pub fn set(&self, ctx: &Context) {
-        let r = self.r as f64 / 256.0;
-        let g = self.g as f64 / 256.0;
-        let b = self.b as f64 / 256.0;
-        ctx.set_source_rgb(r, g, b);
+        let r = self.r as f64 / 255.0;
+        let g = self.g as f64 / 255.0;
+        let b = self.b as f64 / 255.0;
+        if self.a == 0xff {
+            ctx.set_source_rgb(r, g, b);
+        } else {
+            ctx.set_source_rgba(r, g, b, self.a as f64 / 255.0);
+        }
     }
 
     pub fn luminance(&self) -> f64 {
@@ -93,6 +117,14 @@ impl Color {
         let g = self.g as f64 / 256.0;
         let b = self.b as f64 / 256.0;
         0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+
+    pub fn white() -> Self {
+        Self::from_rgb(0xff, 0xff, 0xff)
+    }
+
+    pub fn black() -> Self {
+        Self::from_rgb(0x00, 0x00, 0x00)
     }
 }
 
@@ -122,7 +154,9 @@ impl Themes {
         let mut colors = Vec::with_capacity(5);
         for i in 0..5 {
             let b = off + i * 4;
-            colors.push(Color::from_u32(BigEndian::read_u32(&self.mem[b..b + 4])));
+            colors.push(Color::from_rgb_u32(BigEndian::read_u32(
+                &self.mem[b..b + 4],
+            )));
         }
         colors
     }

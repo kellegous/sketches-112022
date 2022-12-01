@@ -55,19 +55,19 @@ impl RenderOpts for Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    A,
+    A(a::Args),
 }
 
 impl Command {
     fn render(&self, args: &Args, ctx: &Context) -> Result<(), Box<dyn Error>> {
         match self {
-            Command::A => a::render(args, ctx),
+            Command::A(params) => a::render(args, ctx, params),
         }
     }
 
     fn name(&self) -> &str {
         match self {
-            Command::A => "a",
+            Command::A(_) => "a",
         }
     }
 }
