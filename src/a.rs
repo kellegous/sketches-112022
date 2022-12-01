@@ -9,32 +9,6 @@ pub struct Args {
     show_grid: bool,
 }
 
-fn select_colors(rng: &mut dyn RngCore, colors: &[Color]) -> (Color, Vec<Color>) {
-    (
-        colors[0],
-        colors[1..].iter().map(|c| *c).collect::<Vec<_>>(),
-    )
-    // let iter = colors
-    //     .iter()
-    //     .enumerate()
-    //     .map(|(ix, c)| (ix, *c, c.luminance()));
-    // let (ix, bg, _) = if rng.gen::<bool>() {
-    //     iter.max_by(|(_, _, a), (_, _, b)| a.partial_cmp(b).unwrap())
-    // } else {
-    //     iter.min_by(|(_, _, a), (_, _, b)| a.partial_cmp(b).unwrap())
-    // }
-    // .unwrap();
-
-    // let colors = colors
-    //     .iter()
-    //     .enumerate()
-    //     .filter(|(i, _)| *i != ix)
-    //     .map(|(_, c)| *c)
-    //     .collect::<Vec<_>>();
-
-    // (bg, colors)
-}
-
 #[derive(Debug)]
 struct Series {
     width: f64,
@@ -47,6 +21,7 @@ impl Series {
         Series { width, height, pts }
     }
 
+    #[allow(dead_code)]
     fn translate(&self, dx: f64, dy: f64) -> Series {
         Series::new(
             self.width,
@@ -247,7 +222,8 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
 
     let themes = opts.themes()?;
     let (_, theme) = themes.pick(&mut rng);
-    let (bg, theme) = select_colors(&mut rng, &theme);
+    let bg = theme[0];
+    let theme = theme[1..].iter().map(|c| *c).collect::<Vec<_>>();
 
     bg.set(ctx);
     ctx.rectangle(0.0, 0.0, width, height);
