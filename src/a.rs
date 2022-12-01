@@ -85,7 +85,45 @@ impl Series {
         Ok(())
     }
 
-    fn render(&self, ctx: &Context) -> Result<(), Box<dyn Error>> {
+    fn fill_to_bottom(&self, ctx: &Context) -> Result<(), Box<dyn Error>> {
+        ctx.new_path();
+        let (x, y) = self.pts.first().unwrap();
+        ctx.move_to(0.0, self.height);
+        ctx.line_to(0.0, *y);
+        ctx.line_to(*x, *y);
+
+        for i in 1..self.pts.len() {
+            let (xa, ya) = self.pts[i - 1];
+            let (xb, yb) = self.pts[i];
+
+            let dx = xb - xa;
+
+            let ow = dx / 2.0;
+            let c = ow * 0.5523;
+
+            if yb - ya > dx {
+                ctx.curve_to(xa + c, ya, xa + ow, ya + ow - c, xa + ow, ya + ow);
+                ctx.line_to(xb - ow, yb - ow);
+                ctx.curve_to(xb - ow, yb - ow + c, xb - c, yb, xb, yb);
+            } else if ya - yb > dx {
+                ctx.curve_to(xa + c, ya, xa + ow, ya - ow + c, xa + ow, ya - ow);
+                ctx.line_to(xb - ow, yb + ow);
+                ctx.curve_to(xb - ow, yb + ow - c, xb - c, yb, xb, yb);
+            } else {
+                ctx.curve_to(xa + ow, ya, xb - ow, yb, xb, yb);
+            }
+        }
+
+        let (_, y) = self.pts.last().unwrap();
+        ctx.line_to(self.width, *y);
+        ctx.line_to(self.width, self.height);
+        ctx.close_path();
+        ctx.fill()?;
+
+        Ok(())
+    }
+
+    fn fill_to_top(&self, ctx: &Context) -> Result<(), Box<dyn Error>> {
         ctx.new_path();
         let (x, y) = self.pts.first().unwrap();
         ctx.move_to(0.0, 0.0);
@@ -148,69 +186,42 @@ impl Grid {
     fn nh(&self) -> i32 {
         self.nh
     }
-}
 
-fn render_grid(
-    ctx: &Context,
-    color: Color,
-    width: f64,
-    height: f64,
-    grid: &Grid,
-) -> Result<(), Box<dyn Error>> {
-    color.with_alpha(0.6).set(ctx);
+    fn render(&self, ctx: &Context, width: f64, height: f64) -> Result<(), Box<dyn Error>> {
+        let nw = self.nw;
+        let nh = self.nh;
 
-    let nw = grid.nw();
-    let nh = grid.nh();
+        let dw = width / nw as f64;
+        let dh = height / nh as f64;
 
-    let dw = width / nw as f64;
-    let dh = height / nh as f64;
+        ctx.save()?;
+        ctx.new_path();
+        ctx.translate(dw / 2.0, 0.0);
+        for i in 0..nw {
+            let x = dw * i as f64;
+            ctx.move_to(x, 0.0);
+            ctx.line_to(x, height);
+        }
+        ctx.set_line_width(1.0);
+        ctx.set_dash(&vec![1.0, 4.0], 0.0);
+        ctx.stroke()?;
+        ctx.restore()?;
 
-    ctx.save()?;
-    ctx.new_path();
-    ctx.translate(dw / 2.0, 0.0);
-    for i in 0..nw {
-        let x = dw * i as f64;
-        ctx.move_to(x, 0.0);
-        ctx.line_to(x, height);
+        ctx.save()?;
+        ctx.new_path();
+        ctx.translate(0.0, dh / 2.0);
+        for i in 0..nh {
+            let y = dh * i as f64;
+            ctx.move_to(0.0, y);
+            ctx.line_to(width, y);
+        }
+        ctx.set_line_width(1.0);
+        ctx.set_dash(&vec![1.0, 4.0], 0.0);
+        ctx.stroke()?;
+        ctx.restore()?;
+
+        Ok(())
     }
-    ctx.set_line_width(1.0);
-    ctx.set_dash(&vec![1.0, 4.0], 0.0);
-    ctx.stroke()?;
-    ctx.restore()?;
-
-    ctx.save()?;
-    ctx.new_path();
-    ctx.translate(0.0, dh / 2.0);
-    for i in 0..nh {
-        let y = dh * i as f64;
-        ctx.move_to(0.0, y);
-        ctx.line_to(width, y);
-    }
-    ctx.set_line_width(1.0);
-    ctx.set_dash(&vec![1.0, 4.0], 0.0);
-    ctx.stroke()?;
-    ctx.restore()?;
-
-    Ok(())
-}
-
-fn render_series(
-    ctx: &Context,
-    series: &Series,
-    ca: Color,
-    cb: Color,
-    line_width: f64,
-) -> Result<(), Box<dyn Error>> {
-    ctx.save()?;
-
-    ca.set(ctx);
-    series.render(ctx)?;
-
-    cb.set(ctx);
-    ctx.set_line_width(line_width);
-    series.stroke(ctx)?;
-    ctx.restore()?;
-    Ok(())
 }
 
 pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), Box<dyn Error>> {
@@ -229,31 +240,50 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.rectangle(0.0, 0.0, width, height);
     ctx.fill()?;
 
-    let grid = Grid::new(rng.gen_range(5..40), rng.gen_range(5..40));
-    render_series(
-        ctx,
-        &Series::gen_on_grid(&mut rng, &grid, width, height),
-        theme[0],
-        theme[1],
-        20.0,
-    )?;
+    let tgrid = Grid::new(rng.gen_range(5..40), rng.gen_range(5..20));
+    let series = Series::gen_on_grid(&mut rng, &tgrid, width, height / 2.0);
+    ctx.save()?;
+    theme[0].set(ctx);
+    series.fill_to_top(ctx)?;
+    theme[1].set(ctx);
+    ctx.set_line_width(20.0);
+    series.stroke(ctx)?;
+    ctx.restore()?;
 
-    render_series(
-        ctx,
-        &Series::gen_on_grid(&mut rng, &grid, width, height),
-        theme[2],
-        theme[3],
-        20.0,
-    )?;
+    let bgrid = Grid::new(tgrid.nw(), rng.gen_range(5..20));
+    let series = Series::gen_on_grid(&mut rng, &bgrid, width, height / 2.0);
+    ctx.save()?;
+    ctx.translate(0.0, height / 2.0);
+    theme[0].set(ctx);
+    series.fill_to_bottom(ctx)?;
+    theme[1].set(ctx);
+    ctx.set_line_width(20.0);
+    series.stroke(ctx)?;
+    ctx.restore()?;
 
     if args.show_grid {
-        let color = if bg.luminance() > 0.5 {
-            Color::black()
-        } else {
-            Color::white()
-        };
+        let cy = height / 2.0;
 
-        render_grid(ctx, color, width, height, &grid)?;
+        if bg.luminance() > 0.5 {
+            Color::from_rgba(0x00, 0x00, 0x00, 0.6)
+        } else {
+            Color::from_rgba(0xff, 0xff, 0xff, 0.6)
+        }
+        .set(ctx);
+
+        ctx.save()?;
+
+        ctx.new_path();
+        ctx.move_to(0.0, cy);
+        ctx.line_to(width, cy);
+        ctx.set_line_width(1.0);
+        ctx.stroke()?;
+
+        tgrid.render(ctx, width, cy)?;
+
+        ctx.translate(0.0, cy);
+        bgrid.render(ctx, width, cy)?;
+        ctx.restore()?;
     }
 
     Ok(())
