@@ -169,6 +169,7 @@ impl Index<usize> for Series {
     }
 }
 
+#[derive(Copy, Clone)]
 struct Grid {
     nw: i32,
     nh: i32,
@@ -230,6 +231,44 @@ impl std::fmt::Display for Grid {
     }
 }
 
+fn render_series_to_top(
+    ctx: &Context,
+    series: &Series,
+    theme: &[Color],
+) -> Result<(), Box<dyn Error>> {
+    ctx.save()?;
+    for i in 1..4 {
+        let i = 4 - i;
+        theme[i].set(ctx);
+        ctx.set_line_width(30.0 * i as f64);
+        series.stroke(ctx)?;
+    }
+
+    theme[0].set(ctx);
+    series.fill_to_top(ctx)?;
+    ctx.restore()?;
+    Ok(())
+}
+
+fn render_series_to_bottom(
+    ctx: &Context,
+    series: &Series,
+    theme: &[Color],
+) -> Result<(), Box<dyn Error>> {
+    ctx.save()?;
+    for i in 1..4 {
+        let i = 4 - i;
+        theme[i].set(ctx);
+        ctx.set_line_width(30.0 * i as f64);
+        series.stroke(ctx)?;
+    }
+
+    theme[0].set(ctx);
+    series.fill_to_bottom(ctx)?;
+    ctx.restore()?;
+    Ok(())
+}
+
 pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), Box<dyn Error>> {
     let size = opts.size();
     let width = size.width() as f64;
@@ -248,23 +287,13 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
 
     let tgrid = Grid::new(rng.gen_range(5..20), rng.gen_range(5..10));
     let series = Series::gen_on_grid(&mut rng, &tgrid, width, height / 2.0);
-    ctx.save()?;
-    theme[0].set(ctx);
-    series.fill_to_top(ctx)?;
-    theme[1].set(ctx);
-    ctx.set_line_width(20.0);
-    series.stroke(ctx)?;
-    ctx.restore()?;
+    render_series_to_top(ctx, &series, &theme)?;
 
-    let bgrid = Grid::new(tgrid.nw(), rng.gen_range(5..10));
+    let bgrid = tgrid;
     let series = Series::gen_on_grid(&mut rng, &bgrid, width, height / 2.0);
     ctx.save()?;
     ctx.translate(0.0, height / 2.0);
-    theme[0].set(ctx);
-    series.fill_to_bottom(ctx)?;
-    theme[1].set(ctx);
-    ctx.set_line_width(20.0);
-    series.stroke(ctx)?;
+    render_series_to_bottom(ctx, &series, &theme)?;
     ctx.restore()?;
 
     if args.show_grid {
