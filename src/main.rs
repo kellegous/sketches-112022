@@ -7,6 +7,7 @@ use sketches::{RenderOpts, Size, Themes};
 use std::{error::Error, fs, io, path::PathBuf};
 
 mod a;
+mod b;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -56,18 +57,21 @@ impl RenderOpts for Args {
 #[derive(Subcommand, Debug)]
 enum Command {
     A(a::Args),
+    B,
 }
 
 impl Command {
     fn render(&self, args: &Args, ctx: &Context) -> Result<(), Box<dyn Error>> {
         match self {
             Command::A(params) => a::render(args, ctx, params),
+            Command::B => b::render(args, ctx),
         }
     }
 
     fn name(&self) -> &str {
         match self {
             Command::A(_) => "a",
+            Command::B => "b",
         }
     }
 }
