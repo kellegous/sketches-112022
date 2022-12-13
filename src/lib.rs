@@ -1,9 +1,115 @@
 use byteorder::{BigEndian, ByteOrder};
 use cairo::Context;
+use core::fmt;
 use memmap::{Mmap, MmapOptions};
 use rand::{distributions::Uniform, prelude::Distribution};
 use rand_pcg::Pcg64;
 use std::{error::Error, fs, io, path::Path, str::FromStr};
+
+#[derive(Debug, Clone)]
+pub struct Point {
+    x: f64,
+    y: f64,
+}
+
+impl Point {
+    pub fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+
+    pub fn y(&self) -> f64 {
+        self.y
+    }
+}
+
+impl std::fmt::Display for Point {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({:0.3}, {:0.3})", self.x, self.y)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Rect {
+    tl: Point,
+    br: Point,
+}
+
+impl Rect {
+    pub fn from_wh(w: f64, h: f64) -> Self {
+        Self::from_ltrb(0.0, 0.0, w, h)
+    }
+
+    pub fn from_xywh(x: f64, y: f64, w: f64, h: f64) -> Self {
+        Rect {
+            tl: Point::new(x, y),
+            br: Point::new(x + w, y + h),
+        }
+    }
+
+    pub fn from_ltrb(l: f64, t: f64, r: f64, b: f64) -> Self {
+        Self {
+            tl: Point::new(l, t),
+            br: Point { x: r, y: b },
+        }
+    }
+
+    pub fn new(tl: &Point, br: &Point) -> Self {
+        Self {
+            tl: tl.clone(),
+            br: br.clone(),
+        }
+    }
+
+    pub fn x(&self) -> f64 {
+        self.tl.x
+    }
+
+    pub fn y(&self) -> f64 {
+        self.tl.y
+    }
+
+    pub fn width(&self) -> f64 {
+        self.br.x - self.tl.x
+    }
+
+    pub fn height(&self) -> f64 {
+        self.br.y - self.tl.y
+    }
+
+    pub fn left(&self) -> f64 {
+        self.tl.x
+    }
+
+    pub fn right(&self) -> f64 {
+        self.br.x
+    }
+
+    pub fn top(&self) -> f64 {
+        self.tl.y
+    }
+
+    pub fn bottom(&self) -> f64 {
+        self.br.y
+    }
+
+    pub fn top_left(&self) -> &Point {
+        &self.tl
+    }
+
+    pub fn bottom_right(&self) -> &Point {
+        &self.br
+    }
+}
+
+impl std::fmt::Display for Rect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{} {}]", self.tl, self.br)
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Size {

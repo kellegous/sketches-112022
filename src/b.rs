@@ -1,9 +1,56 @@
 use cairo::Context;
-use rand::Rng;
-use sketches::{Color, RenderOpts};
+use rand::{Rng, RngCore};
+use sketches::{Rect, RenderOpts};
 use std::{error::Error, f64::consts::PI};
 
 const TAU: f64 = 2.0 * PI;
+
+fn burst_path(ctx: &Context, ro: f64, ri: f64, n: usize) {
+    let dt = TAU / n as f64;
+    let ot = TAU / 4.0;
+
+    ctx.new_path();
+    ctx.move_to(0.0, -ri);
+    for i in 1..=n {
+        let tb = dt * i as f64 - ot;
+        let ta = tb - dt / 2.0;
+        ctx.line_to(ro * ta.cos(), ro * ta.sin());
+        ctx.line_to(ri * tb.cos(), ri * tb.sin());
+    }
+    ctx.close_path();
+}
+
+fn tendrils_path(ctx: &Context, ri: f64, ro: f64, y_spacing: f64, bounds: &Rect, n: usize) {
+    let dt = TAU / n as f64;
+    let ot = TAU / 4.0;
+    let nh = n / 2;
+    for i in 0..=nh {
+        let t = dt * i as f64 - ot;
+        ctx.move_to(ri * t.cos(), ri * t.sin());
+        let y = -(nh as f64) * y_spacing / 2.0 + y_spacing * i as f64;
+        ctx.curve_to(
+            1.5 * ro * t.cos(),
+            1.5 * ro * t.sin(),
+            bounds.right() - ro,
+            y,
+            bounds.right(),
+            y,
+        );
+    }
+    for i in 0..=nh {
+        let t = 0.75 * TAU - dt * i as f64;
+        ctx.move_to(ri * t.cos(), ri * t.sin());
+        let y = y_spacing * i as f64 - nh as f64 * y_spacing / 2.0;
+        ctx.curve_to(
+            1.5 * ro * t.cos(),
+            1.5 * ro * t.sin(),
+            bounds.x() + ro,
+            y,
+            bounds.x(),
+            y,
+        );
+    }
+}
 
 pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>> {
     let size = opts.size();
@@ -23,52 +70,40 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
     let cy = height / 2.0;
 
     let r = cx.min(cy);
-    let ri = r * 0.6;
+    let ri = r * 0.4;
     let ro = ri * (1.1 + rng.gen::<f64>() * 0.4);
 
+    let rt = rng.gen_range(r * 0.02..r * 0.1);
+    let radii = (0..=2)
+        .rev()
+        .map(|i| {
+            let o = rt * i as f64;
+            (ro + o, ri + o)
+        })
+        .collect::<Vec<_>>();
+
     let n = 2 * rng.gen_range(4..10);
-    let dt = TAU / n as f64;
-    let ot = TAU / 4.0;
 
     ctx.save()?;
-    for i in 0..n {
-        let tb = dt * i as f64 - ot;
-        let ta = tb - dt / 2.0;
-        ctx.line_to(cx + ro * ta.cos(), cy + ro * ta.sin());
-        ctx.line_to(cx + ri * tb.cos(), cy + ri * tb.sin());
+    ctx.translate(cx, cy);
+    for (i, (ro, ri)) in radii.iter().enumerate() {
+        theme[i + 2].set(ctx);
+        burst_path(ctx, *ro, *ri, n);
+        ctx.fill()?;
     }
-    ctx.close_path();
-    theme[2].set(ctx);
-    ctx.set_line_width(1.0);
-    ctx.fill()?;
     ctx.restore()?;
 
-    // tendrils
     ctx.save()?;
     theme[3].set(ctx);
-    let ds = rng.gen_range(10..40) as f64;
-    let nh = n / 2;
-    // ctx.set_dash(&[1.0, 5.0], 0.0);
-    ctx.set_line_width(2.0);
-    for i in 0..=nh {
-        let t = dt * i as f64 - TAU / 4.0;
-        ctx.move_to(cx + ri * t.cos(), cy + ri * t.sin());
-        let y = cy - nh as f64 * ds / 2.0 + ds * i as f64;
-        ctx.curve_to(
-            cx + 1.5 * r * t.cos(),
-            cy + 1.5 * r * t.sin(),
-            width - r,
-            y,
-            width,
-            y,
-        );
-    }
-    for i in 0..=nh {
-        let t = 0.75 * TAU - dt * i as f64;
-        ctx.move_to(cx + ri * t.cos(), cy + ri * t.sin());
-        let y = cy - nh as f64 * ds / 2.0 + ds * i as f64;
-        ctx.curve_to(cx + 1.5 * r * t.cos(), cy + 1.5 * r * t.sin(), r, y, 0.0, y);
-    }
+    ctx.translate(cx, cy);
+    tendrils_path(
+        ctx,
+        radii[0].1 + rt,
+        r,
+        rng.gen_range(10..40) as f64,
+        &Rect::from_xywh(-cx, -cy, width, height),
+        n,
+    );
     ctx.stroke()?;
     ctx.restore()?;
 
