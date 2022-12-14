@@ -91,7 +91,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
     let cb = if ca.luminance() > 0.5 {
         ca.darker(1.0)
     } else {
-        ca.brighter(1.0)
+        ca.brighter(1.5)
     };
     ctx.translate(cx, cy);
     render_bg(ctx, ca, &cb, cx.max(cy), &Rect::from_ltrb(-cx, -cy, cx, cy))?;
@@ -120,15 +120,16 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
     }
     ctx.restore()?;
 
+    let lw = rng.gen_range(2.0..6.0);
     ctx.save()?;
     ctx.translate(cx, cy);
     let y_spacing = rng.gen_range(10.0..(height / 8.0)) as f64;
     ctx.set_line_cap(LineCap::Round);
     theme[3].set(ctx);
-    ctx.set_line_width(5.0);
+    ctx.set_line_width(lw);
     tendrils_path(
         ctx,
-        ri + 4.0 * rt,
+        ri + 4.5 * rt,
         r,
         y_spacing,
         &Rect::from_xywh(-cx, -cy, width, height),
@@ -143,7 +144,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
     let t0 = TAU / 4.0;
     let ra = ri + 4.5 * rt;
     let rb = rt / 2.0;
-    ctx.set_line_width(5.0);
+    ctx.set_line_width(lw * 0.9);
     for i in 0..n {
         let t = dt * i as f64 - t0;
         ctx.new_path();
