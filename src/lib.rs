@@ -6,6 +6,9 @@ use rand::{distributions::Uniform, prelude::Distribution};
 use rand_pcg::Pcg64;
 use std::{error::Error, fs, io, path::Path, str::FromStr};
 
+const DARKER: f64 = 0.7;
+const BRIGHTER: f64 = 1.0 / DARKER;
+
 #[derive(Debug, Clone)]
 pub struct Point {
     x: f64,
@@ -223,6 +226,64 @@ impl Color {
         let g = self.g as f64 / 256.0;
         let b = self.b as f64 / 256.0;
         0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+
+    fn as_f64(&self) -> (f64, f64, f64) {
+        (
+            self.r as f64 / 255.0,
+            self.g as f64 / 255.0,
+            self.b as f64 / 255.0,
+        )
+    }
+
+    pub fn r(&self) -> u8 {
+        self.r
+    }
+
+    pub fn r_f64(&self) -> f64 {
+        self.r as f64 / 255.0
+    }
+
+    pub fn g(&self) -> u8 {
+        self.g
+    }
+
+    pub fn g_f64(&self) -> f64 {
+        self.g as f64 / 255.0
+    }
+
+    pub fn b(&self) -> u8 {
+        self.b
+    }
+
+    pub fn b_f64(&self) -> f64 {
+        self.b as f64 / 255.0
+    }
+
+    pub fn alpha(&self) -> f64 {
+        self.a as f64 * 255.0
+    }
+
+    pub fn brighter(&self, k: f64) -> Self {
+        let (r, g, b) = self.as_f64();
+        let k = BRIGHTER.powf(k);
+        Self {
+            a: self.a,
+            r: (r * 255.0 * k) as u8,
+            g: (g * 255.0 * k) as u8,
+            b: (b * 255.0 * k) as u8,
+        }
+    }
+
+    pub fn darker(&self, k: f64) -> Self {
+        let (r, g, b) = self.as_f64();
+        let k = DARKER.powf(k);
+        Self {
+            a: self.a,
+            r: (r * 255.0 * k) as u8,
+            g: (g * 255.0 * k) as u8,
+            b: (b * 255.0 * k) as u8,
+        }
     }
 
     pub fn white() -> Self {
