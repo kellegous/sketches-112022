@@ -45,6 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut rng = Pcg64::seed_from_u64(Utc::now().timestamp() as u64);
     for _ in 0..args.count {
         let params = vec![
+            String::from("--silent"),
             format!("--seed={}", rng.gen::<u64>()),
             format!("--size={}", args.size),
             format!("--themes={}", args.themes),
