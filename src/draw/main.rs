@@ -3,11 +3,8 @@ use chrono::Utc;
 use clap::{Parser, Subcommand, ValueEnum};
 use rand::prelude::*;
 use rand_pcg::Pcg64;
-use sketches::{RenderOpts, Size, Themes};
+use sketches::{a, b, RenderOpts, Size, Themes};
 use std::{error::Error, fs, io, path::PathBuf};
-
-mod a;
-mod b;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -35,13 +32,6 @@ impl Args {
         let v = template::render(&self.dest, &template::Context::from_args(self))?;
         Ok(PathBuf::from(v))
     }
-    // fn dest(&self) -> PathBuf {
-    //     let dest = match &self.dest {
-    //         Some(v) => v.as_str(),
-    //         None => self.command.name(),
-    //     };
-    //     PathBuf::from(format!("{}.{}", dest, self.format.extension()))
-    // }
 }
 
 impl RenderOpts for Args {

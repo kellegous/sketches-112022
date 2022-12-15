@@ -1,6 +1,6 @@
+use super::{Color, Rect, RenderOpts};
 use cairo::{Context, LineCap, RadialGradient};
 use rand::Rng;
-use sketches::{Color, Rect, RenderOpts};
 use std::{error::Error, f64::consts::PI};
 
 const TAU: f64 = 2.0 * PI;
@@ -163,12 +163,16 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
     ctx.fill()?;
     ctx.restore()?;
 
-    // ctx.save()?;
-    // theme[1].set(ctx);
-    // ctx.new_path();
-    // ctx.arc(cx, cy, ri, 0.0, TAU);
-    // ctx.fill()?;
-    // ctx.restore()?;
+    ctx.save()?;
+    ctx.translate(cx, cy);
+    ctx.set_line_width(lw * 0.9);
+    ctx.new_path();
+    ctx.arc(0.0, 0.0, rb, 0.0, TAU);
+    theme[1].set(ctx);
+    ctx.fill_preserve()?;
+    theme[3].set(ctx);
+    ctx.stroke()?;
+    ctx.restore()?;
 
     Ok(())
 }

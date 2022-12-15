@@ -1,6 +1,6 @@
+use super::{Color, RenderOpts};
 use cairo::Context;
 use rand::{Rng, RngCore};
-use sketches::{Color, RenderOpts};
 use std::{error::Error, ops::Index};
 
 #[derive(Debug, clap::Args)]
