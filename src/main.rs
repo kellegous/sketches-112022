@@ -10,7 +10,7 @@ mod a;
 mod b;
 
 #[derive(Parser, Debug)]
-struct Args {
+pub struct Args {
     #[arg(long, default_value_t=Utc::now().timestamp() as u64)]
     seed: u64,
 
@@ -23,21 +23,25 @@ struct Args {
     #[arg(long, value_enum, default_value_t=Format::Png)]
     format: Format,
 
-    #[arg(long)]
-    dest: Option<String>,
+    #[arg(long, default_value_t=String::from("{name}.{extension}"))]
+    dest: String,
 
     #[command(subcommand)]
     command: Command,
 }
 
 impl Args {
-    fn dest(&self) -> PathBuf {
-        let dest = match &self.dest {
-            Some(v) => v.as_str(),
-            None => self.command.name(),
-        };
-        PathBuf::from(format!("{}.{}", dest, self.format.extension()))
+    fn dest(&self) -> Result<PathBuf, Box<dyn Error>> {
+        let v = template::render(&self.dest, &template::Context::from_args(self))?;
+        Ok(PathBuf::from(v))
     }
+    // fn dest(&self) -> PathBuf {
+    //     let dest = match &self.dest {
+    //         Some(v) => v.as_str(),
+    //         None => self.command.name(),
+    //     };
+    //     PathBuf::from(format!("{}.{}", dest, self.format.extension()))
+    // }
 }
 
 impl RenderOpts for Args {
@@ -85,10 +89,10 @@ enum Format {
 impl Format {
     fn render(&self, args: &Args) -> Result<(), Box<dyn Error>> {
         let size = args.size();
+        let dest = args.dest()?;
         match args.format {
             Format::Pdf => {
-                let surface =
-                    PdfSurface::new(size.width() as f64, size.height() as f64, args.dest())?;
+                let surface = PdfSurface::new(size.width() as f64, size.height() as f64, dest)?;
                 let ctx = Context::new(&surface)?;
                 args.command.render(args, &ctx)?;
                 surface.finish();
@@ -99,7 +103,7 @@ impl Format {
                     ImageSurface::create(cairo::Format::ARgb32, size.width(), size.height())?;
                 let ctx = Context::new(&surface)?;
                 args.command.render(args, &ctx)?;
-                surface.write_to_png(&mut fs::File::create(args.dest())?)?;
+                surface.write_to_png(&mut fs::File::create(dest)?)?;
                 Ok(())
             }
         }
@@ -110,6 +114,37 @@ impl Format {
             Format::Pdf => "pdf",
             Format::Png => "png",
         }
+    }
+}
+
+mod template {
+    use super::Args;
+    use serde::Serialize;
+    use std::error::Error;
+    use tinytemplate::TinyTemplate;
+
+    #[derive(Serialize)]
+    pub struct Context {
+        seed: u64,
+        name: String,
+        extension: String,
+    }
+
+    impl Context {
+        pub fn from_args(args: &Args) -> Context {
+            Context {
+                seed: args.seed,
+                name: args.command.name().to_owned(),
+                extension: args.format.extension().to_owned(),
+            }
+        }
+    }
+
+    pub fn render(tpl: &str, ctx: &Context) -> Result<String, Box<dyn Error>> {
+        let mut tt = TinyTemplate::new();
+        tt.add_template("t", tpl)?;
+        let res = tt.render("t", ctx)?;
+        Ok(res)
     }
 }
 

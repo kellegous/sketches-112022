@@ -1,4 +1,4 @@
-use cairo::{Context, LineCap, LinearGradient, Pattern, RadialGradient};
+use cairo::{Context, LineCap, RadialGradient};
 use rand::Rng;
 use sketches::{Color, Rect, RenderOpts};
 use std::{error::Error, f64::consts::PI};
