@@ -17,3 +17,7 @@ tinytemplate = "1.2"
 [[bin]]
 name = "draw"
 path = "src/draw/main.rs"
+
+[[bin]]
+name = "drawsome"
+path = "src/drawsome/main.rs"

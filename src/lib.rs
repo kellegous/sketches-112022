@@ -9,6 +9,8 @@ use std::{error::Error, fs, io, path::Path, str::FromStr};
 pub mod a;
 pub mod b;
 
+pub mod common;
+
 const DARKER: f64 = 0.7;
 const BRIGHTER: f64 = 1.0 / DARKER;
 

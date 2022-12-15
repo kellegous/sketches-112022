@@ -1,9 +1,10 @@
 use cairo::{Context, ImageSurface, PdfSurface};
 use chrono::Utc;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::Parser;
 use rand::prelude::*;
 use rand_pcg::Pcg64;
-use sketches::{a, b, RenderOpts, Size, Themes};
+use sketches::common::{Command, Format};
+use sketches::{RenderOpts, Size, Themes};
 use std::{error::Error, fs, io, path::PathBuf};
 
 #[derive(Parser, Debug)]
@@ -22,6 +23,9 @@ pub struct Args {
 
     #[arg(long, default_value_t=String::from("{name}.{extension}"))]
     dest: String,
+
+    #[arg(long, default_value_t = false)]
+    silent: bool,
 
     #[command(subcommand)]
     command: Command,
@@ -45,71 +49,6 @@ impl RenderOpts for Args {
 
     fn themes(&self) -> io::Result<Themes> {
         Themes::open(&self.themes)
-    }
-}
-
-#[derive(Subcommand, Debug)]
-enum Command {
-    A(a::Args),
-    B,
-}
-
-impl Command {
-    fn render(&self, args: &Args, ctx: &Context) -> Result<(), Box<dyn Error>> {
-        match self {
-            Command::A(params) => a::render(args, ctx, params),
-            Command::B => b::render(args, ctx),
-        }
-    }
-
-    fn name(&self) -> &str {
-        match self {
-            Command::A(_) => "a",
-            Command::B => "b",
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
-enum Format {
-    Png,
-    Pdf,
-}
-
-impl Format {
-    #[warn(unused_must_use)]
-    fn render(&self, args: &Args) -> Result<(), Box<dyn Error>> {
-        let size = args.size();
-        let dest = args.dest()?;
-
-        if let Some(dir) = dest.parent() {
-            fs::create_dir_all(dir).ok();
-        }
-
-        match args.format {
-            Format::Pdf => {
-                let surface = PdfSurface::new(size.width() as f64, size.height() as f64, dest)?;
-                let ctx = Context::new(&surface)?;
-                args.command.render(args, &ctx)?;
-                surface.finish();
-                Ok(())
-            }
-            Format::Png => {
-                let surface =
-                    ImageSurface::create(cairo::Format::ARgb32, size.width(), size.height())?;
-                let ctx = Context::new(&surface)?;
-                args.command.render(args, &ctx)?;
-                surface.write_to_png(&mut fs::File::create(dest)?)?;
-                Ok(())
-            }
-        }
-    }
-
-    fn extension(&self) -> &str {
-        match self {
-            Format::Pdf => "pdf",
-            Format::Png => "png",
-        }
     }
 }
 
@@ -144,8 +83,36 @@ mod template {
     }
 }
 
+fn render(args: &Args) -> Result<(), Box<dyn Error>> {
+    let size = args.size();
+    let dest = args.dest()?;
+
+    if let Some(dir) = dest.parent() {
+        fs::create_dir_all(dir).ok();
+    }
+
+    match args.format {
+        Format::Pdf => {
+            let surface = PdfSurface::new(size.width() as f64, size.height() as f64, dest)?;
+            let ctx = Context::new(&surface)?;
+            args.command.render(args, &ctx)?;
+            surface.finish();
+            Ok(())
+        }
+        Format::Png => {
+            let surface = ImageSurface::create(cairo::Format::ARgb32, size.width(), size.height())?;
+            let ctx = Context::new(&surface)?;
+            args.command.render(args, &ctx)?;
+            surface.write_to_png(&mut fs::File::create(dest)?)?;
+            Ok(())
+        }
+    }
+}
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    println!("seed: {}", args.seed);
-    args.format.render(&args)
+    if !args.silent {
+        println!("seed: {}", args.seed);
+    }
+    render(&args)?;
+    Ok(())
 }
