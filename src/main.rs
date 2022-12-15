@@ -87,9 +87,15 @@ enum Format {
 }
 
 impl Format {
+    #[warn(unused_must_use)]
     fn render(&self, args: &Args) -> Result<(), Box<dyn Error>> {
         let size = args.size();
         let dest = args.dest()?;
+
+        if let Some(dir) = dest.parent() {
+            fs::create_dir_all(dir).ok();
+        }
+
         match args.format {
             Format::Pdf => {
                 let surface = PdfSurface::new(size.width() as f64, size.height() as f64, dest)?;
