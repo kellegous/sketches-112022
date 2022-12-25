@@ -1,13 +1,13 @@
+use crate::{a, b, c, RenderOpts};
 use cairo::Context;
 use clap::{Subcommand, ValueEnum};
 use std::error::Error;
-
-use crate::{a, b, RenderOpts};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
     A(a::Args),
     B,
+    C,
 }
 
 impl Command {
@@ -15,6 +15,7 @@ impl Command {
         match self {
             Command::A(params) => a::render(args, ctx, params),
             Command::B => b::render(args, ctx),
+            Command::C => c::render(args, ctx),
         }
     }
 
@@ -22,6 +23,7 @@ impl Command {
         match self {
             Command::A(_) => "a",
             Command::B => "b",
+            Command::C => "c",
         }
     }
 }

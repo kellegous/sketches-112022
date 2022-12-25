@@ -6,8 +6,9 @@ use rand::{distributions::Uniform, prelude::Distribution};
 use rand_pcg::Pcg64;
 use std::{error::Error, fs, io, path::Path, str::FromStr};
 
-pub mod a;
-pub mod b;
+mod a;
+mod b;
+mod c;
 
 pub mod common;
 

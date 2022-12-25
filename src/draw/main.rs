@@ -5,12 +5,52 @@ use rand::prelude::*;
 use rand_pcg::Pcg64;
 use sketches::common::{Command, Format};
 use sketches::{RenderOpts, Size, Themes};
+use std::fmt::Display;
 use std::{error::Error, fs, io, path::PathBuf};
+
+#[derive(Debug, Clone, Copy)]
+struct Seed {
+    v: u64,
+}
+
+impl Default for Seed {
+    fn default() -> Self {
+        Self {
+            v: Utc::now().timestamp() as u64,
+        }
+    }
+}
+
+impl Display for Seed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:08x}", self.v)
+    }
+}
+
+impl Seed {
+    fn new(v: u64) -> Self {
+        Self { v }
+    }
+
+    fn from_now() -> Self {
+        Self::new(Utc::now().timestamp() as u64)
+    }
+
+    fn from_arg(s: &str) -> Result<Seed, String> {
+        u64::from_str_radix(s, 16)
+            .map(|v| Seed::new(v))
+            .map_err(|_| format!("invalid seed: {}", s))
+    }
+
+    fn value(&self) -> u64 {
+        self.v
+    }
+}
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    #[arg(long, default_value_t=Utc::now().timestamp() as u64)]
-    seed: u64,
+    #[arg(long, default_value_t=Seed::from_now(), value_parser=Seed::from_arg)]
+    seed: Seed,
 
     #[arg(long, default_value_t=Size::new(1600, 600), value_parser=Size::from_arg)]
     size: Size,
@@ -44,7 +84,7 @@ impl RenderOpts for Args {
     }
 
     fn rng(&self) -> Pcg64 {
-        Pcg64::seed_from_u64(self.seed)
+        Pcg64::seed_from_u64(self.seed.value())
     }
 
     fn themes(&self) -> io::Result<Themes> {
@@ -60,7 +100,7 @@ mod template {
 
     #[derive(Serialize)]
     pub struct Context {
-        seed: u64,
+        seed: String,
         name: String,
         extension: String,
     }
@@ -68,7 +108,7 @@ mod template {
     impl Context {
         pub fn from_args(args: &Args) -> Context {
             Context {
-                seed: args.seed,
+                seed: format!("{}", args.seed),
                 name: args.command.name().to_owned(),
                 extension: args.format.extension().to_owned(),
             }
@@ -108,6 +148,7 @@ fn render(args: &Args) -> Result<(), Box<dyn Error>> {
         }
     }
 }
+
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     if !args.silent {
