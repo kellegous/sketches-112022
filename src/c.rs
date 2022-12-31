@@ -272,7 +272,7 @@ fn render_face(
 fn render_stuff(ctx: &Context, r: f64, tx: &Mat3) -> Result<(), Box<dyn Error>> {
     render_face(
         ctx,
-        &vec![
+        &[
             Vec3::new(0.0, 0.0, 0.0 + r / 2.0),
             Vec3::new(r, 0.0, 0.0 + r / 2.0),
             Vec3::new(r, r, 0.0 + r / 2.0),
@@ -285,7 +285,7 @@ fn render_stuff(ctx: &Context, r: f64, tx: &Mat3) -> Result<(), Box<dyn Error>> 
 
     render_face(
         ctx,
-        &vec![
+        &[
             Vec3::new(0.0, 0.0, 0.0),
             Vec3::new(r, 0.0, 0.0),
             Vec3::new(r, r, 0.0),

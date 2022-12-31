@@ -9,6 +9,7 @@ use std::{error::Error, fs, io, path::Path, str::FromStr};
 mod a;
 mod b;
 mod c;
+mod d;
 
 pub mod common;
 

@@ -123,7 +123,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context) -> Result<(), Box<dyn Error>
     let lw = rng.gen_range(2.0..6.0);
     ctx.save()?;
     ctx.translate(cx, cy);
-    let y_spacing = rng.gen_range(10.0..(height / 8.0)) as f64;
+    let y_spacing = rng.gen_range(10.0..(height / 8.0));
     ctx.set_line_cap(LineCap::Round);
     theme[3].set(ctx);
     ctx.set_line_width(lw);

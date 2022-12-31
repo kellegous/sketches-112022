@@ -204,7 +204,7 @@ impl Grid {
             ctx.line_to(x, height);
         }
         ctx.set_line_width(1.0);
-        ctx.set_dash(&vec![1.0, 4.0], 0.0);
+        ctx.set_dash(&[1.0, 4.0], 0.0);
         ctx.stroke()?;
         ctx.restore()?;
 
@@ -217,7 +217,7 @@ impl Grid {
             ctx.line_to(width, y);
         }
         ctx.set_line_width(1.0);
-        ctx.set_dash(&vec![1.0, 4.0], 0.0);
+        ctx.set_dash(&[1.0, 4.0], 0.0);
         ctx.stroke()?;
         ctx.restore()?;
 
@@ -279,7 +279,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     let themes = opts.themes()?;
     let (_, theme) = themes.pick(&mut rng);
     let bg = theme[0];
-    let theme = theme[1..].iter().map(|c| *c).collect::<Vec<_>>();
+    let theme = theme[1..].to_vec();
 
     bg.set(ctx);
     ctx.rectangle(0.0, 0.0, width, height);
