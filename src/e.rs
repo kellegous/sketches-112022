@@ -26,11 +26,11 @@ fn select_nodes(
 ) -> Vec<Vec<(Color, usize)>> {
     let mut nodes = Vec::new();
     for i in grid.x_range() {
-        let mut sum = rng.gen_range(grid.y_range());
         let mut picks = Vec::new();
-        while sum < grid.ny && picks.len() < colors.len() {
-            picks.push((colors[picks.len()], sum));
-            sum += rng.gen_range(grid.y_range());
+        let mut max = rng.gen_range(0..grid.ny / 2);
+        while max < grid.ny && picks.len() < colors.len() {
+            picks.push((colors[picks.len()], max));
+            max += rng.gen_range(1..grid.ny);
         }
         nodes.push(picks);
     }
