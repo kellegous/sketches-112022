@@ -279,7 +279,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     let themes = opts.themes()?;
     let (_, theme) = themes.pick(&mut rng);
     let bg = theme[0];
-    let theme = theme[1..].to_vec();
+    let theme = &theme[1..];
 
     bg.set(ctx);
     ctx.rectangle(0.0, 0.0, width, height);
@@ -287,13 +287,13 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
 
     let tgrid = Grid::new(rng.gen_range(5..20), rng.gen_range(5..10));
     let series = Series::gen_on_grid(&mut rng, &tgrid, width, height / 2.0);
-    render_series_to_top(ctx, &series, &theme)?;
+    render_series_to_top(ctx, &series, theme)?;
 
     let bgrid = tgrid;
     let series = Series::gen_on_grid(&mut rng, &bgrid, width, height / 2.0);
     ctx.save()?;
     ctx.translate(0.0, height / 2.0);
-    render_series_to_bottom(ctx, &series, &theme)?;
+    render_series_to_bottom(ctx, &series, theme)?;
     ctx.restore()?;
 
     if args.show_grid {

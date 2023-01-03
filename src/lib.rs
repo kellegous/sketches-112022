@@ -10,6 +10,7 @@ mod a;
 mod b;
 mod c;
 mod d;
+mod e;
 
 pub mod common;
 

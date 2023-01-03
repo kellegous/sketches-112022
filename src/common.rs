@@ -1,4 +1,4 @@
-use crate::{a, b, c, d, RenderOpts};
+use crate::{a, b, c, d, e, RenderOpts};
 use cairo::Context;
 use clap::{Subcommand, ValueEnum};
 use std::error::Error;
@@ -9,6 +9,7 @@ pub enum Command {
     B,
     C,
     D,
+    E(e::Args),
 }
 
 impl Command {
@@ -18,6 +19,7 @@ impl Command {
             Command::B => b::render(args, ctx),
             Command::C => c::render(args, ctx),
             Command::D => d::render(args, ctx),
+            Command::E(params) => e::render(args, ctx, params),
         }
     }
 
@@ -27,6 +29,7 @@ impl Command {
             Command::B => "b",
             Command::C => "c",
             Command::D => "d",
+            Command::E(_) => "e",
         }
     }
 }
