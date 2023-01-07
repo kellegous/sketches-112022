@@ -1,7 +1,7 @@
 use crate::{Color, RenderOpts};
 use cairo::{Context, LineCap};
 use rand::Rng;
-use std::{error::Error, f64::consts::PI, ops::Range, sync::Arc};
+use std::{error::Error, f64::consts::PI, ops::Range};
 
 const TAU: f64 = 2.0 * PI;
 
@@ -10,8 +10,8 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     show_grid: bool,
 
-    #[arg(long, default_value_t = false)]
-    debug: bool,
+    #[arg(long, default_value_t = true)]
+    show_halos: bool,
 }
 
 fn index_of_max(colors: &[Color]) -> usize {
@@ -54,14 +54,18 @@ fn select_nodes(
     rng: &mut dyn rand::RngCore,
     grid: &Grid,
     colors: &[Color],
+    density: f64,
 ) -> Vec<Vec<(Color, usize)>> {
     let mut nodes = Vec::new();
     for _ in grid.x_range() {
         let mut picks = Vec::new();
-        let mut max = rng.gen_range(0..grid.ny / 2);
-        while max < grid.ny && picks.len() < colors.len() {
-            picks.push((colors[picks.len()], max));
-            max += rng.gen_range(1..grid.ny);
+        // we need to pick at least one
+        let j = rng.gen_range(0..grid.ny / 2);
+        picks.push((colors[0], j));
+        for j in j + 1..grid.ny {
+            if rng.gen::<f64>() < density {
+                picks.push((colors[picks.len() % colors.len()], j))
+            }
         }
         nodes.push(picks);
     }
@@ -91,6 +95,10 @@ impl Grid {
 
     fn x_range(&self) -> Range<usize> {
         0..self.nx
+    }
+
+    fn y_range(&self) -> Range<usize> {
+        0..self.ny
     }
 
     fn x_of(&self, i: usize) -> f64 {
@@ -155,6 +163,14 @@ impl Path {
             }
         }
     }
+
+    fn first(&self) -> &(f64, f64) {
+        self.pts.first().unwrap()
+    }
+
+    fn last(&self) -> &(f64, f64) {
+        self.pts.last().unwrap()
+    }
 }
 
 fn build_vline(
@@ -205,13 +221,13 @@ fn build_vline(
     Path { pts }
 }
 
-fn shadow_over(base: &Color) -> Color {
+fn shadow_over(base: &Color, alpha: f64) -> Color {
     if base.luminance() > 0.5 {
         Color::black()
     } else {
         Color::white()
     }
-    .with_alpha(0.2)
+    .with_alpha(alpha)
 }
 
 pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), Box<dyn Error>> {
@@ -250,8 +266,8 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
 
     let r = grid.dx.min(grid.dy);
     let ra = r / 5.0;
-    let rb = r / 3.0;
-    let nodes = select_nodes(&mut rng, &grid, &colors);
+    let rb = r * 0.45;
+    let nodes = select_nodes(&mut rng, &grid, &colors, 0.25);
     let paths = nodes
         .iter()
         .enumerate()
@@ -263,7 +279,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     paths.iter().for_each(|p| p.draw_smooth(ctx));
     ctx.set_line_width(4.0);
     ctx.set_line_cap(LineCap::Round);
-    shadow_over(&ca).set(ctx);
+    shadow_over(&ca, 0.2).set(ctx);
     ctx.stroke()?;
     ctx.restore()?;
 
@@ -275,14 +291,30 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.stroke()?;
     ctx.restore()?;
 
+    // cap the ends of the vlines
+    ctx.save()?;
+    cb.set(ctx);
+    for path in paths.iter() {
+        let &(x, y) = path.first();
+        ctx.new_path();
+        ctx.arc(x, y, 4.0, 0.0, TAU);
+        ctx.fill()?;
+
+        let &(x, y) = path.last();
+        ctx.new_path();
+        ctx.arc(x, y, 4.0, 0.0, TAU);
+        ctx.fill()?;
+    }
+    ctx.restore()?;
+
     // draw node shadows
     ctx.save()?;
-    ctx.translate(shadow_dx, shadow_dy);
+    ctx.translate(shadow_dx + 1.0, shadow_dy + 1.0);
     for (i, nodes) in nodes.iter().enumerate() {
         for &(_, j) in nodes.iter() {
             ctx.new_path();
             ctx.arc(grid.x_of(i), grid.y_of(j), ra, 0.0, TAU);
-            shadow_over(&ca).set(ctx);
+            shadow_over(&ca, 0.2).set(ctx);
             ctx.fill()?;
         }
     }
@@ -293,15 +325,44 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.set_line_width(4.0);
     for (i, nodes) in nodes.iter().enumerate() {
         for (color, j) in nodes.iter() {
+            let x = grid.x_of(i);
+            let y = grid.y_of(*j);
+
             ctx.new_path();
-            ctx.arc(grid.x_of(i), grid.y_of(*j), ra, 0.0, TAU);
+            ctx.arc(x, y, ra, 0.0, TAU);
             color.set(ctx);
-            ctx.fill_preserve()?;
+            ctx.fill()?;
+
+            ctx.set_line_width(4.0);
+            ctx.new_path();
+            ctx.arc(x, y, ra - 1.0, 0.0, TAU);
+            shadow_over(color, 0.2).set(ctx);
+            ctx.stroke()?;
+
+            ctx.new_path();
+            ctx.arc(x, y, ra, 0.0, TAU);
             cb.set(ctx);
             ctx.stroke()?;
         }
     }
     ctx.restore()?;
+
+    if args.show_halos {
+        ctx.save()?;
+        for (i, nodes) in nodes.iter().enumerate() {
+            for (_, j) in nodes.iter() {
+                let x = grid.x_of(i);
+                let y = grid.y_of(*j);
+                ctx.new_path();
+                ctx.arc(x, y, r, 0.0, TAU);
+                shadow_over(&ca, 1.0).set(ctx);
+                ctx.set_line_width(2.0);
+                ctx.set_dash(&[1.0, 4.0], 0.0);
+                ctx.stroke()?;
+            }
+        }
+        ctx.restore()?;
+    }
 
     Ok(())
 }
