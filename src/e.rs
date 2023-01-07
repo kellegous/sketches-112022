@@ -1,7 +1,7 @@
 use crate::{Color, RenderOpts};
 use cairo::{Context, LineCap};
 use rand::Rng;
-use std::{error::Error, f64::consts::PI, ops::Range};
+use std::{error::Error, f64::consts::PI, ops::Range, sync::Arc};
 
 const TAU: f64 = 2.0 * PI;
 
@@ -205,12 +205,24 @@ fn build_vline(
     Path { pts }
 }
 
+fn shadow_over(base: &Color) -> Color {
+    if base.luminance() > 0.5 {
+        Color::black()
+    } else {
+        Color::white()
+    }
+    .with_alpha(0.2)
+}
+
 pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), Box<dyn Error>> {
     let size = opts.size();
     let width = size.width() as f64;
     let height = size.height() as f64;
 
     let mut rng = opts.rng();
+
+    let shadow_dx = 3.0;
+    let shadow_dy = 2.0;
 
     let themes = opts.themes()?;
     let (_, theme) = themes.pick(&mut rng);
@@ -224,7 +236,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.fill()?;
     ctx.restore()?;
 
-    let grid = Grid::new(width, height, rng.gen_range(20..50), rng.gen_range(5..20));
+    let grid = Grid::new(width, height, rng.gen_range(20..40), rng.gen_range(5..20));
 
     if args.show_grid {
         ctx.save()?;
@@ -236,20 +248,22 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
         ctx.restore()?;
     }
 
-    let r = grid.dx.min(grid.dy) / 3.0;
+    let r = grid.dx.min(grid.dy);
+    let ra = r / 5.0;
+    let rb = r / 3.0;
     let nodes = select_nodes(&mut rng, &grid, &colors);
     let paths = nodes
         .iter()
         .enumerate()
-        .map(|(i, nodes)| build_vline(&mut rng, &grid, r * 1.5, grid.x_of(i), nodes))
+        .map(|(i, nodes)| build_vline(&mut rng, &grid, rb, grid.x_of(i), nodes))
         .collect::<Vec<_>>();
 
     ctx.save()?;
-    ctx.translate(3.0, 2.0);
+    ctx.translate(shadow_dx, shadow_dy);
     paths.iter().for_each(|p| p.draw_smooth(ctx));
     ctx.set_line_width(4.0);
     ctx.set_line_cap(LineCap::Round);
-    Color::black().with_alpha(0.2).set(ctx);
+    shadow_over(&ca).set(ctx);
     ctx.stroke()?;
     ctx.restore()?;
 
@@ -261,12 +275,26 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.stroke()?;
     ctx.restore()?;
 
+    // draw node shadows
+    ctx.save()?;
+    ctx.translate(shadow_dx, shadow_dy);
+    for (i, nodes) in nodes.iter().enumerate() {
+        for &(_, j) in nodes.iter() {
+            ctx.new_path();
+            ctx.arc(grid.x_of(i), grid.y_of(j), ra, 0.0, TAU);
+            shadow_over(&ca).set(ctx);
+            ctx.fill()?;
+        }
+    }
+    ctx.restore()?;
+
+    // draw the nodes
     ctx.save()?;
     ctx.set_line_width(4.0);
     for (i, nodes) in nodes.iter().enumerate() {
         for (color, j) in nodes.iter() {
             ctx.new_path();
-            ctx.arc(grid.x_of(i), grid.y_of(*j), r, 0.0, TAU);
+            ctx.arc(grid.x_of(i), grid.y_of(*j), ra, 0.0, TAU);
             color.set(ctx);
             ctx.fill_preserve()?;
             cb.set(ctx);
