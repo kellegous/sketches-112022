@@ -9,14 +9,9 @@ const TAU: f64 = 2.0 * PI;
 pub struct Args {
     #[arg(long, default_value_t = false)]
     show_grid: bool,
-}
 
-fn color_contrasting_with(c: &Color) -> Color {
-    if c.luminance() > 0.5 {
-        Color::from_rgb(0x33, 0x33, 0x33)
-    } else {
-        Color::white()
-    }
+    #[arg(long, default_value_t = false)]
+    debug: bool,
 }
 
 fn index_of_max(colors: &[Color]) -> usize {
@@ -61,7 +56,7 @@ fn select_nodes(
     colors: &[Color],
 ) -> Vec<Vec<(Color, usize)>> {
     let mut nodes = Vec::new();
-    for i in grid.x_range() {
+    for _ in grid.x_range() {
         let mut picks = Vec::new();
         let mut max = rng.gen_range(0..grid.ny / 2);
         while max < grid.ny && picks.len() < colors.len() {
@@ -98,10 +93,6 @@ impl Grid {
         0..self.nx
     }
 
-    fn y_range(&self) -> Range<usize> {
-        0..self.ny
-    }
-
     fn x_of(&self, i: usize) -> f64 {
         (i + 1) as f64 * self.dx
     }
@@ -136,57 +127,82 @@ fn pick<T>(rng: &mut dyn rand::RngCore, a: T, b: T) -> T {
     }
 }
 
-fn draw_vline(
-    ctx: &Context,
+struct Path {
+    pts: Vec<(f64, f64)>,
+}
+
+impl Path {
+    #[allow(dead_code)]
+    fn draw(&self, ctx: &Context) {
+        let &(x, y) = self.pts.first().unwrap();
+        ctx.move_to(x, y);
+        for &(x, y) in &self.pts[1..] {
+            ctx.line_to(x, y);
+        }
+    }
+
+    fn draw_smooth(&self, ctx: &Context) {
+        let &(x, y) = self.pts.first().unwrap();
+        ctx.move_to(x, y);
+        for i in 1..self.pts.len() {
+            let (xa, ya) = self.pts[i - 1];
+            let (xb, yb) = self.pts[i];
+            if (xa - xb).abs() < 0.001 {
+                ctx.line_to(xb, yb);
+            } else {
+                let cy = (yb - ya) / 2.0;
+                ctx.curve_to(xa, ya + cy, xb, ya + cy, xb, yb);
+            }
+        }
+    }
+}
+
+fn build_vline(
     rng: &mut dyn rand::RngCore,
     grid: &Grid,
     r: f64,
     x: f64,
     nodes: &[(Color, usize)],
-) -> Result<(), Box<dyn Error>> {
+) -> Path {
+    let dyh = grid.dy / 2.0;
+
+    let mut pts = Vec::new();
     let mut cx = x + pick(rng, -r, r);
     let &(_, j) = nodes.first().unwrap();
     if j == 0 {
-        ctx.move_to(cx, grid.dy / 2.0);
-        ctx.line_to(cx, grid.y_of(0));
+        pts.push((cx, dyh));
+        pts.push((cx, grid.y_of(j)));
     } else {
         let y = grid.y_of(j);
-        ctx.move_to(x, grid.dy / 2.0);
-        ctx.line_to(x, y - grid.dy);
-        ctx.curve_to(x, y - grid.dy / 2.0, cx, y - grid.dy / 2.0, cx, y);
+        pts.push((x, dyh));
+        pts.push((x, y - grid.dy));
+        pts.push((cx, y));
     }
 
     for k in 1..nodes.len() {
         let (_, ja) = nodes[k - 1];
         let (_, jb) = nodes[k];
         if jb - ja == 1 {
-            ctx.line_to(cx, grid.y_of(jb));
+            pts.push((cx, grid.y_of(jb)));
         } else {
             let ya = grid.y_of(ja);
             let yb = grid.y_of(jb);
-            ctx.curve_to(
-                cx,
-                ya + grid.dy / 2.0,
-                x,
-                ya + grid.dy / 2.0,
-                x,
-                ya + grid.dy,
-            );
-            ctx.line_to(x, yb - grid.dy);
+            pts.push((x, ya + grid.dy));
+            pts.push((x, yb - grid.dy));
             cx = x + pick(rng, -r, r);
-            ctx.curve_to(x, yb - grid.dy / 2.0, cx, yb - grid.dy / 2.0, cx, yb);
+            pts.push((cx, yb));
         }
     }
 
     let &(_, j) = nodes.last().unwrap();
     if j == grid.ny - 1 {
-        ctx.line_to(cx, grid.y_of(grid.ny - 1) + grid.dy / 2.0);
+        pts.push((cx, grid.y_of(grid.ny - 1) + dyh));
     } else {
         let y = grid.y_of(j);
-        ctx.curve_to(cx, y + grid.dy / 2.0, x, y + grid.dy / 2.0, x, y + grid.dy);
-        ctx.line_to(x, grid.y_of(grid.ny - 1) + grid.dy / 2.0);
+        pts.push((x, y + grid.dy));
+        pts.push((x, grid.y_of(grid.ny - 1) + dyh));
     }
-    Ok(())
+    Path { pts }
 }
 
 pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), Box<dyn Error>> {
@@ -220,28 +236,25 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
         ctx.restore()?;
     }
 
-    // ctx.save()?;
-    // ctx.new_path();
-    // for i in grid.x_range() {
-    //     let x = grid.x_of(i);
-    //     ctx.move_to(x, grid.dy / 2.0);
-    //     ctx.line_to(x, height - grid.dy / 2.0);
-    // }
-    // ctx.set_line_width(4.0);
-    // ctx.set_line_cap(LineCap::Round);
-    // cb.set(ctx);
-    // ctx.stroke()?;
-    // ctx.restore()?;
-
     let r = grid.dx.min(grid.dy) / 3.0;
     let nodes = select_nodes(&mut rng, &grid, &colors);
+    let paths = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, nodes)| build_vline(&mut rng, &grid, r * 1.5, grid.x_of(i), nodes))
+        .collect::<Vec<_>>();
 
     ctx.save()?;
-    ctx.new_path();
-    for i in grid.x_range() {
-        let x = grid.x_of(i);
-        draw_vline(ctx, &mut rng, &grid, r * 1.5, x, &nodes[i])?;
-    }
+    ctx.translate(3.0, 2.0);
+    paths.iter().for_each(|p| p.draw_smooth(ctx));
+    ctx.set_line_width(4.0);
+    ctx.set_line_cap(LineCap::Round);
+    Color::black().with_alpha(0.2).set(ctx);
+    ctx.stroke()?;
+    ctx.restore()?;
+
+    ctx.save()?;
+    paths.iter().for_each(|p| p.draw_smooth(ctx));
     ctx.set_line_width(4.0);
     ctx.set_line_cap(LineCap::Round);
     cb.set(ctx);
