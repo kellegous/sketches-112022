@@ -128,6 +128,67 @@ impl Grid {
     }
 }
 
+fn pick<T>(rng: &mut dyn rand::RngCore, a: T, b: T) -> T {
+    if rng.gen::<bool>() {
+        a
+    } else {
+        b
+    }
+}
+
+fn draw_vline(
+    ctx: &Context,
+    rng: &mut dyn rand::RngCore,
+    grid: &Grid,
+    r: f64,
+    x: f64,
+    nodes: &[(Color, usize)],
+) -> Result<(), Box<dyn Error>> {
+    let mut cx = x + pick(rng, -r, r);
+    let &(_, j) = nodes.first().unwrap();
+    if j == 0 {
+        ctx.move_to(cx, grid.dy / 2.0);
+        ctx.line_to(cx, grid.y_of(0));
+    } else {
+        let y = grid.y_of(j);
+        ctx.move_to(x, grid.dy / 2.0);
+        ctx.line_to(x, y - grid.dy);
+        ctx.curve_to(x, y - grid.dy / 2.0, cx, y - grid.dy / 2.0, cx, y);
+    }
+
+    for k in 1..nodes.len() {
+        let (_, ja) = nodes[k - 1];
+        let (_, jb) = nodes[k];
+        if jb - ja == 1 {
+            ctx.line_to(cx, grid.y_of(jb));
+        } else {
+            let ya = grid.y_of(ja);
+            let yb = grid.y_of(jb);
+            ctx.curve_to(
+                cx,
+                ya + grid.dy / 2.0,
+                x,
+                ya + grid.dy / 2.0,
+                x,
+                ya + grid.dy,
+            );
+            ctx.line_to(x, yb - grid.dy);
+            cx = x + pick(rng, -r, r);
+            ctx.curve_to(x, yb - grid.dy / 2.0, cx, yb - grid.dy / 2.0, cx, yb);
+        }
+    }
+
+    let &(_, j) = nodes.last().unwrap();
+    if j == grid.ny - 1 {
+        ctx.line_to(cx, grid.y_of(grid.ny - 1) + grid.dy / 2.0);
+    } else {
+        let y = grid.y_of(j);
+        ctx.curve_to(cx, y + grid.dy / 2.0, x, y + grid.dy / 2.0, x, y + grid.dy);
+        ctx.line_to(x, grid.y_of(grid.ny - 1) + grid.dy / 2.0);
+    }
+    Ok(())
+}
+
 pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), Box<dyn Error>> {
     let size = opts.size();
     let width = size.width() as f64;
@@ -159,12 +220,27 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
         ctx.restore()?;
     }
 
+    // ctx.save()?;
+    // ctx.new_path();
+    // for i in grid.x_range() {
+    //     let x = grid.x_of(i);
+    //     ctx.move_to(x, grid.dy / 2.0);
+    //     ctx.line_to(x, height - grid.dy / 2.0);
+    // }
+    // ctx.set_line_width(4.0);
+    // ctx.set_line_cap(LineCap::Round);
+    // cb.set(ctx);
+    // ctx.stroke()?;
+    // ctx.restore()?;
+
+    let r = grid.dx.min(grid.dy) / 3.0;
+    let nodes = select_nodes(&mut rng, &grid, &colors);
+
     ctx.save()?;
     ctx.new_path();
     for i in grid.x_range() {
         let x = grid.x_of(i);
-        ctx.move_to(x, grid.dy / 2.0);
-        ctx.line_to(x, height - grid.dy / 2.0);
+        draw_vline(ctx, &mut rng, &grid, r * 1.5, x, &nodes[i])?;
     }
     ctx.set_line_width(4.0);
     ctx.set_line_cap(LineCap::Round);
@@ -172,8 +248,6 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.stroke()?;
     ctx.restore()?;
 
-    let r = grid.dx.min(grid.dy) / 3.0;
-    let nodes = select_nodes(&mut rng, &grid, &colors);
     ctx.save()?;
     ctx.set_line_width(4.0);
     for (i, nodes) in nodes.iter().enumerate() {
