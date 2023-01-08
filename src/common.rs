@@ -85,4 +85,8 @@ impl Seed {
             .map(Seed::new)
             .map_err(|_| format!("invalid seed: {}", s))
     }
+
+    pub fn value(&self) -> u64 {
+        self.v
+    }
 }
