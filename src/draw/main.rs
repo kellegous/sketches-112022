@@ -1,55 +1,15 @@
 use cairo::{Context, ImageSurface, PdfSurface};
-use chrono::Utc;
 use clap::Parser;
 use rand::prelude::*;
 use rand_pcg::Pcg64;
+use sketches::common::Seed;
 use sketches::common::{Command, Format};
 use sketches::{RenderOpts, Size, Themes};
-use std::fmt::Display;
 use std::{error::Error, fs, io, path::PathBuf};
-
-#[derive(Debug, Clone, Copy)]
-struct Seed {
-    v: u64,
-}
-
-impl Default for Seed {
-    fn default() -> Self {
-        Self {
-            v: Utc::now().timestamp() as u64,
-        }
-    }
-}
-
-impl Display for Seed {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:08x}", self.v)
-    }
-}
-
-impl Seed {
-    fn new(v: u64) -> Self {
-        Self { v }
-    }
-
-    fn from_now() -> Self {
-        Self::new(Utc::now().timestamp() as u64)
-    }
-
-    fn from_arg(s: &str) -> Result<Seed, String> {
-        u64::from_str_radix(s, 16)
-            .map(|v| Seed::new(v))
-            .map_err(|_| format!("invalid seed: {}", s))
-    }
-
-    fn value(&self) -> u64 {
-        self.v
-    }
-}
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    #[arg(long, default_value_t=Seed::from_now(), value_parser=Seed::from_arg)]
+    #[arg(long, default_value_t=Default::default(), value_parser=Seed::from_arg)]
     seed: Seed,
 
     #[arg(long, default_value_t=Size::new(1600, 600), value_parser=Size::from_arg)]

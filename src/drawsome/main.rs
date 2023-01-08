@@ -3,7 +3,7 @@ use clap::Parser;
 use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg64;
 use sketches::{
-    common::{Command, Format},
+    common::{Command, Format, Seed},
     Size,
 };
 use std::{error::Error, path::PathBuf, process};
@@ -31,7 +31,7 @@ struct Args {
 
 fn bin_dir() -> Result<PathBuf, Box<dyn Error>> {
     let cmd = std::env::args()
-        .nth(0)
+        .next()
         .ok_or("could not determine command")?;
     let cmd = PathBuf::from(cmd);
     let dir = cmd.parent().ok_or("no parent directory")?.to_owned();
@@ -44,9 +44,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut rng = Pcg64::seed_from_u64(Utc::now().timestamp() as u64);
     for _ in 0..args.count {
+        let seed = Seed::new(rng.gen::<u64>());
         let params = vec![
             String::from("--silent"),
-            format!("--seed={}", rng.gen::<u64>()),
+            format!("--seed={}", seed),
             format!("--size={}", args.size),
             format!("--themes={}", args.themes),
             format!("--format={}", args.format),

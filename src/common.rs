@@ -1,7 +1,8 @@
 use crate::{a, b, c, d, e, RenderOpts};
 use cairo::Context;
+use chrono::Utc;
 use clap::{Subcommand, ValueEnum};
-use std::error::Error;
+use std::{error::Error, fmt::Display};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -52,5 +53,36 @@ impl Format {
 impl std::fmt::Display for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.extension())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Seed {
+    v: u64,
+}
+
+impl Default for Seed {
+    fn default() -> Self {
+        Self {
+            v: Utc::now().timestamp() as u64,
+        }
+    }
+}
+
+impl Display for Seed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:08x}", self.v)
+    }
+}
+
+impl Seed {
+    pub fn new(v: u64) -> Self {
+        Self { v }
+    }
+
+    pub fn from_arg(s: &str) -> Result<Seed, String> {
+        u64::from_str_radix(s, 16)
+            .map(Seed::new)
+            .map_err(|_| format!("invalid seed: {}", s))
     }
 }

@@ -357,7 +357,7 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
                 ctx.arc(x, y, r, 0.0, TAU);
                 shadow_over(&ca, 1.0).set(ctx);
                 ctx.set_line_width(2.0);
-                ctx.set_dash(&[1.0, 4.0], 0.0);
+                ctx.set_dash(&[1.0, 5.0], 0.0);
                 ctx.stroke()?;
             }
         }
