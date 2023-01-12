@@ -284,6 +284,22 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     ctx.restore()?;
 
     ctx.save()?;
+    ctx.translate(shadow_dx, shadow_dy);
+    shadow_over(&ca, 0.2).set(ctx);
+    for path in paths.iter() {
+        let &(x, y) = path.first();
+        ctx.new_path();
+        ctx.arc(x, y, 4.0, 0.0, TAU);
+        ctx.fill()?;
+
+        let &(x, y) = path.last();
+        ctx.new_path();
+        ctx.arc(x, y, 4.0, 0.0, TAU);
+        ctx.fill()?;
+    }
+    ctx.restore()?;
+
+    ctx.save()?;
     paths.iter().for_each(|p| p.draw_smooth(ctx));
     ctx.set_line_width(4.0);
     ctx.set_line_cap(LineCap::Round);
@@ -307,6 +323,23 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
     }
     ctx.restore()?;
 
+    if args.show_halos {
+        ctx.save()?;
+        for (i, nodes) in nodes.iter().enumerate() {
+            for (_, j) in nodes.iter() {
+                let x = grid.x_of(i);
+                let y = grid.y_of(*j);
+                ctx.new_path();
+                ctx.arc(x, y, r, 0.0, TAU);
+                shadow_over(&ca, 1.0).set(ctx);
+                ctx.set_line_width(2.0);
+                ctx.set_dash(&[1.0, 5.0], 0.0);
+                ctx.stroke()?;
+            }
+        }
+        ctx.restore()?;
+    }
+
     // draw node shadows
     ctx.save()?;
     ctx.translate(shadow_dx + 1.0, shadow_dy + 1.0);
@@ -322,7 +355,6 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
 
     // draw the nodes
     ctx.save()?;
-    ctx.set_line_width(4.0);
     for (i, nodes) in nodes.iter().enumerate() {
         for (color, j) in nodes.iter() {
             let x = grid.x_of(i);
@@ -346,23 +378,6 @@ pub fn render(opts: &dyn RenderOpts, ctx: &Context, args: &Args) -> Result<(), B
         }
     }
     ctx.restore()?;
-
-    if args.show_halos {
-        ctx.save()?;
-        for (i, nodes) in nodes.iter().enumerate() {
-            for (_, j) in nodes.iter() {
-                let x = grid.x_of(i);
-                let y = grid.y_of(*j);
-                ctx.new_path();
-                ctx.arc(x, y, r, 0.0, TAU);
-                shadow_over(&ca, 1.0).set(ctx);
-                ctx.set_line_width(2.0);
-                ctx.set_dash(&[1.0, 5.0], 0.0);
-                ctx.stroke()?;
-            }
-        }
-        ctx.restore()?;
-    }
 
     Ok(())
 }
