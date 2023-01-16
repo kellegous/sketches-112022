@@ -5,7 +5,12 @@ use rand_pcg::Pcg64;
 use sketches::common::Seed;
 use sketches::common::{Command, Format};
 use sketches::{RenderOpts, Size, Themes};
-use std::{error::Error, fs, io, path::PathBuf};
+use std::{
+    error::Error,
+    fs, io,
+    path::{Path, PathBuf},
+    process,
+};
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -26,6 +31,9 @@ pub struct Args {
 
     #[arg(long, default_value_t = false)]
     silent: bool,
+
+    #[arg(long, default_value_t = false)]
+    open: bool,
 
     #[command(subcommand)]
     command: Command,
@@ -83,7 +91,7 @@ mod template {
     }
 }
 
-fn render(args: &Args) -> Result<(), Box<dyn Error>> {
+fn render(args: &Args) -> Result<PathBuf, Box<dyn Error>> {
     let size = args.size();
     let dest = args.dest()?;
 
@@ -93,20 +101,27 @@ fn render(args: &Args) -> Result<(), Box<dyn Error>> {
 
     match args.format {
         Format::Pdf => {
-            let surface = PdfSurface::new(size.width() as f64, size.height() as f64, dest)?;
+            let surface = PdfSurface::new(size.width() as f64, size.height() as f64, &dest)?;
             let ctx = Context::new(&surface)?;
             args.command.render(args, &ctx)?;
             surface.finish();
-            Ok(())
+            Ok(dest)
         }
         Format::Png => {
             let surface = ImageSurface::create(cairo::Format::ARgb32, size.width(), size.height())?;
             let ctx = Context::new(&surface)?;
             args.command.render(args, &ctx)?;
-            surface.write_to_png(&mut fs::File::create(dest)?)?;
-            Ok(())
+            surface.write_to_png(&mut fs::File::create(&dest)?)?;
+            Ok(dest)
         }
     }
+}
+
+fn open_image<P: AsRef<Path>>(src: P) -> Result<(), Box<dyn Error>> {
+    process::Command::new("open")
+        .args(&[format!("{}", src.as_ref().display())])
+        .spawn()?;
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -114,6 +129,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     if !args.silent {
         println!("seed: {}", args.seed);
     }
-    render(&args)?;
+    let dst = render(&args)?;
+    if args.open {
+        open_image(&dst)?;
+    }
     Ok(())
 }
